@@ -4,14 +4,26 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 const POLL_MS = 2500;
 
 const METRICS_META = {
-  vegetation_change:        { label: 'Vegetation Change',       color: '#00ff9d', desc: 'NDVI green cover loss/gain' },
-  builtup_change:           { label: 'Built-up Change',         color: '#ff6b35', desc: 'Urban expansion analysis' },
-  water_change:             { label: 'Water Body Change',       color: '#00d4ff', desc: 'Surface water gain/loss' },
+  vegetation_change:        { label: 'Vegetation Change',       icon: '🌿', color: '#00ff9d', desc: 'NDVI green cover loss/gain' },
+  builtup_change:           { label: 'Built-up Change',         icon: '🏙️', color: '#ff6b35', desc: 'Urban expansion analysis' },
+  water_change:             { label: 'Water Body Change',       icon: '💧', color: '#00d4ff', desc: 'Surface water gain/loss' },
+  flood_detection:          { label: 'Flood Detection',         icon: '🌊', color: '#4a9eff', desc: 'SAR flood mapping' },
+  fire_detection:           { label: 'Fire & Burn Scars',       icon: '🔥', color: '#ff4136', desc: 'Active fire mapping' },
+  drought_index:            { label: 'Drought Index',           icon: '🏜️', color: '#f5a623', desc: 'Drought severity' },
+  land_surface_temperature: { label: 'Land Surface Temp',       icon: '🌡️', color: '#ff6b6b', desc: 'Heat & UHI analysis' },
+  deforestation:            { label: 'Deforestation',           icon: '🌲', color: '#2ecc71', desc: 'Forest loss detection' },
+  soil_moisture:            { label: 'Soil Moisture',           icon: '🌱', color: '#a0784a', desc: 'Soil & crop stress' },
 };
 
 const EXAMPLES = [
   'How much green cover did this area lose since 2020?',
   'Show urban expansion between 2018 and 2023',
+  'Detect flood events in the last 2 years',
+  'Analyze deforestation from 2015 to 2024',
+  'What is the drought severity in this region since 2021?',
+  'Map burn scars from wildfires in 2023',
+  'Show land surface temperature change since 2019',
+  'Has soil moisture decreased in this area since 2020?',
 ];
 
 function fmtKey(k) { return k.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()); }
@@ -24,6 +36,7 @@ function fmtVal(k, v) {
   return v.toFixed(3);
 }
 
+// ── Map ───────────────────────────────────────────────────────────────────────
 function VayuMap({ onAreaDrawn, mapRef, drawGroupRef }) {
   const divRef = useRef(null);
   useEffect(() => {
@@ -49,6 +62,8 @@ function VayuMap({ onAreaDrawn, mapRef, drawGroupRef }) {
   }, []);
   return <div ref={divRef} className="w-full h-full" />;
 }
+
+// ── Progress ──────────────────────────────────────────────────────────────────
 function ProgressBar({ pct, label }) {
   return (
     <div className="space-y-1.5">
@@ -63,6 +78,7 @@ function ProgressBar({ pct, label }) {
   );
 }
 
+// ── Metric selector ───────────────────────────────────────────────────────────
 function MetricSelector({ selected, onChange }) {
   return (
     <div>
@@ -81,8 +97,9 @@ function MetricSelector({ selected, onChange }) {
   );
 }
 
+// ── Results ───────────────────────────────────────────────────────────────────
 function ResultsPanel({ result }) {
-  const m = METRICS_META[result.metric] || {label:result.metric, color:'var(--accent)' };
+  const m = METRICS_META[result.metric] || { icon:'📊', label:result.metric, color:'var(--accent)' };
   return (
     <div className="space-y-3 animate-fade-up">
       <div className="flex items-center gap-2 pb-2" style={{ borderBottom:'1px solid var(--border)' }}>
@@ -98,7 +115,7 @@ function ResultsPanel({ result }) {
       </div>
       {result.insight && (
         <div className="p-3 rounded-lg" style={{ background:'rgba(0,212,255,0.05)', border:'1px solid rgba(0,212,255,0.2)' }}>
-          <div className="text-xs uppercase tracking-widest mb-1.5" style={{ color:'var(--accent)', fontFamily:'var(--mono)' }}>AI Insight</div>
+          <div className="text-xs uppercase tracking-widest mb-1.5" style={{ color:'var(--accent)', fontFamily:'var(--mono)' }}>⚡ AI Insight</div>
           <p className="text-xs leading-relaxed" style={{ color:'var(--text2)' }}>{result.insight}</p>
         </div>
       )}
@@ -124,6 +141,7 @@ function ResultsPanel({ result }) {
   );
 }
 
+// ── Sidebar ───────────────────────────────────────────────────────────────────
 function Sidebar({ tab,setTab, queryText,setQueryText, selMetric,setSelMetric, drawnAOI, isLoading,error,result,jobStatus, onSubmit, history,onSelectHistory }) {
   const [eIdx, setEIdx] = useState(0);
   const cycleExample = () => { const n=(eIdx+1)%EXAMPLES.length; setEIdx(n); setQueryText(EXAMPLES[n]); };
@@ -131,6 +149,7 @@ function Sidebar({ tab,setTab, queryText,setQueryText, selMetric,setSelMetric, d
 
   return (
     <div className="glass-panel flex flex-col h-full w-full" style={{ minWidth:0 }}>
+      {/* Logo */}
       <div className="px-5 pt-5 pb-4 flex-shrink-0" style={{ borderBottom:'1px solid var(--border)' }}>
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center text-lg" style={{ background:'rgba(0,212,255,0.12)', border:'1px solid rgba(0,212,255,0.25)' }}>🌍</div>
@@ -141,6 +160,7 @@ function Sidebar({ tab,setTab, queryText,setQueryText, selMetric,setSelMetric, d
         </div>
       </div>
 
+      {/* Tabs */}
       <div className="flex flex-shrink-0 px-3 pt-3 gap-1">
         {TABS.map(t => (
           <button key={t} onClick={() => setTab(t)} className="flex-1 py-1.5 text-xs rounded-md transition-all"
@@ -236,6 +256,147 @@ function Sidebar({ tab,setTab, queryText,setQueryText, selMetric,setSelMetric, d
             </div>
           </div>
         )}
+      </div>
+
+      <div className="flex-shrink-0 px-4 py-3" style={{ borderTop:'1px solid var(--border)' }}>
+        <div className="text-[10px] flex items-center justify-between" style={{ color:'var(--text3)', fontFamily:'var(--mono)' }}>
+          <span>VAYU v1.0.0</span>
+          <span style={{ color:'var(--border2)' }}>GEE · GROQ · FASTAPI</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Map overlay ───────────────────────────────────────────────────────────────
+function MapOverlay({ result, isLoading, drawnAOI }) {
+  if (!isLoading && !result && !drawnAOI) return (
+    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none">
+      <div className="px-4 py-2 rounded-full text-xs" style={{ background:'rgba(13,24,33,0.88)', border:'1px solid var(--border2)', color:'var(--text2)', fontFamily:'var(--mono)' }}>
+        Use the draw tools (top-right) to define your Area of Interest
+      </div>
+    </div>
+  );
+  if (isLoading) return (
+    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none">
+      <div className="px-4 py-2 rounded-full text-xs flex items-center gap-2 animate-glow" style={{ background:'rgba(0,212,255,0.1)', border:'1px solid rgba(0,212,255,0.35)', color:'var(--accent)', fontFamily:'var(--mono)' }}>
+        <span className="animate-spin">⟳</span> ANALYZING SATELLITE DATA
+      </div>
+    </div>
+  );
+  if (result) {
+    const m = METRICS_META[result.metric]||{ icon:'📊', label:result.metric };
+    return (
+      <div className="absolute top-4 right-4 z-[1000] pointer-events-none">
+        <div className="px-3 py-1.5 rounded-lg text-xs" style={{ background:'rgba(13,24,33,0.88)', border:'1px solid var(--border2)', color:'var(--text2)', fontFamily:'var(--mono)' }}>
+          {m.icon} {m.label} · {result.start_date?.slice(0,4)}–{result.end_date?.slice(0,4)}
+        </div>
+      </div>
+    );
+  }
+  return null;
+}
+
+// ── Root App ──────────────────────────────────────────────────────────────────
+export default function App() {
+  const [tab, setTab] = useState('Analyze');
+  const [queryText, setQueryText] = useState('');
+  const [selMetric, setSelMetric] = useState(null);
+  const [drawnAOI, setDrawnAOI] = useState(null);
+  const [result, setResult] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [jobStatus, setJobStatus] = useState(null);
+  const [history, setHistory] = useState([]);
+
+  const mapRef = useRef(null);
+  const drawGroupRef = useRef(null);
+  const layersRef = useRef([]);
+  const pollRef = useRef(null);
+  const aoiBoundsRef = useRef(null);
+
+  const clearLayers = useCallback(() => {
+    layersRef.current.forEach(l => { if (mapRef.current?.hasLayer(l)) mapRef.current.removeLayer(l); });
+    layersRef.current = [];
+  }, []);
+
+  const handleSubmit = useCallback(async () => {
+    if (!queryText.trim()) { setError('Please enter a query.'); return; }
+    if (!drawnAOI) { setError('Please draw an Area of Interest on the map.'); return; }
+    clearLayers();
+    if (drawGroupRef.current?.getLayers().length > 0) {
+      try { aoiBoundsRef.current = drawGroupRef.current.getBounds(); } catch(e) {}
+    }
+    drawGroupRef.current?.clearLayers();
+    setIsLoading(true); setError(null); setResult(null); setJobStatus(null);
+    const savedAOI = drawnAOI;
+    setDrawnAOI(null);
+
+    const text = selMetric ? `[Metric: ${selMetric}] ${queryText}` : queryText;
+    try {
+      const res = await fetch(`${API_URL}/api/v1/query`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ text, aoi_geojson: savedAOI }),
+      });
+      if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.detail||`HTTP ${res.status}`); }
+      const data = await res.json();
+      if (pollRef.current) clearInterval(pollRef.current);
+      pollRef.current = setInterval(async () => {
+        try {
+          const r = await fetch(`${API_URL}/api/v1/query/${data.request_id}`);
+          if (r.status === 202) { const d = await r.json(); setJobStatus(d); return; }
+          if (r.status === 200) {
+            clearInterval(pollRef.current);
+            const d = await r.json();
+            setResult(d); setHistory(p => [d,...p.slice(0,19)]); setIsLoading(false); setJobStatus(null);
+            return;
+          }
+          clearInterval(pollRef.current);
+          const e = await r.json().catch(()=>({}));
+          setError(e.detail||'Processing failed.'); setIsLoading(false);
+        } catch(e) { clearInterval(pollRef.current); setError(`Polling error: ${e.message}`); setIsLoading(false); }
+      }, POLL_MS);
+    } catch(e) { setError(`Failed to submit: ${e.message}`); setIsLoading(false); }
+  }, [queryText, drawnAOI, selMetric, clearLayers]);
+
+  useEffect(() => {
+    if (!result || !mapRef.current) return;
+    clearLayers();
+    if (result.tile_url) {
+      const tl = L.tileLayer(result.tile_url, { opacity:0.75 }).addTo(mapRef.current);
+      layersRef.current.push(tl);
+      // Zoom to AOI if no geojson available
+      if (!result.geojson_url && aoiBoundsRef.current) {
+        try { mapRef.current.fitBounds(aoiBoundsRef.current, { padding:[40,40] }); } catch(e) {}
+      }
+    }
+    if (result.geojson_url) {
+      const gjUrl = result.geojson_url.startsWith('http') ? result.geojson_url : `${API_URL}${result.geojson_url}`;
+      fetch(gjUrl).then(r=>r.json()).then(gj => {
+        const layer = L.geoJSON(gj, { style:{ color:METRICS_META[result.metric]?.color||'#00d4ff', weight:2, opacity:0.9, fillOpacity:0.15 } }).addTo(mapRef.current);
+        if (layer.getBounds().isValid()) mapRef.current.fitBounds(layer.getBounds(), { padding:[40,40] });
+        else if (aoiBoundsRef.current) mapRef.current.fitBounds(aoiBoundsRef.current, { padding:[40,40] });
+        layersRef.current.push(layer);
+      }).catch(()=>{
+        if (aoiBoundsRef.current) mapRef.current.fitBounds(aoiBoundsRef.current, { padding:[40,40] });
+      });
+    }
+  }, [result]);
+
+  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
+
+  return (
+    <div className="w-screen h-screen flex overflow-hidden" style={{ background:'var(--bg)' }}>
+      <div className="w-80 flex-shrink-0 h-full z-10">
+        <Sidebar tab={tab} setTab={setTab} queryText={queryText} setQueryText={setQueryText}
+          selMetric={selMetric} setSelMetric={setSelMetric} drawnAOI={drawnAOI}
+          isLoading={isLoading} error={error} result={result} jobStatus={jobStatus}
+          onSubmit={handleSubmit} history={history}
+          onSelectHistory={r => { setResult(r); clearLayers(); }} />
+      </div>
+      <div className="flex-1 h-full relative scan-overlay">
+        <VayuMap onAreaDrawn={setDrawnAOI} mapRef={mapRef} drawGroupRef={drawGroupRef} />
+        <MapOverlay result={result} isLoading={isLoading} drawnAOI={drawnAOI} />
       </div>
     </div>
   );
