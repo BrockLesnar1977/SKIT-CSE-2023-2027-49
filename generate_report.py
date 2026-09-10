@@ -57,7 +57,13 @@ def get_git_metrics(interval="weekly"):
     except subprocess.CalledProcessError:
         print("[ERROR] Git command failed. Please ensure you are inside a Git repository.")
         return None, None, None, scope_title
-    students = defaultdict(lambda: {"commits": 0, "added": 0, "deleted": 0, "active_days": set()})
+    students = defaultdict(lambda: {
+        "commits": 0,
+        "added": 0,
+        "deleted": 0,
+        "active_days": set(),
+        "contributions": []
+    })
     timeline_activity = defaultdict(lambda: defaultdict(int))
     student_logs = defaultdict(list)
     current_author = None
@@ -89,6 +95,8 @@ def get_git_metrics(interval="weekly"):
             students[current_author]["commits"] += 1
             students[current_author]["active_days"].add(current_date_str)
             student_logs[current_author].append((date_str, sha, msg))
+            if msg:
+                students[current_author]["contributions"].append(msg)
             
             try:
                 dt = datetime.datetime.strptime(current_date_str, "%Y-%m-%d").date()
@@ -253,6 +261,59 @@ def generate_pdf(interval="weekly"):
     ]))
     story.append(table)
     story.append(Spacer(1, 6))
+
+    # 3A. Collaborators & Their Contributions
+    # Summarize each collaborator's actual Git activity using their commit
+    # messages, while retaining the existing individual metrics above.
+    story.append(Paragraph("1A. Collaborators & Their Contributions", section_style))
+
+    contribution_data = [["Collaborator", "Contribution Summary"]]
+    if students:
+        for name, data in students.items():
+            messages = []
+            seen = set()
+            for msg in data["contributions"]:
+                cleaned = " ".join(msg.split())
+                if cleaned and cleaned.lower() not in seen:
+                    messages.append(cleaned)
+                    seen.add(cleaned.lower())
+
+            if messages:
+                # Keep the report compact: show up to 5 distinct commit-message
+                # summaries and indicate if more were recorded.
+                summary_items = messages[:5]
+                if len(messages) > 5:
+                    summary_items.append(f"and {len(messages) - 5} more contribution(s)")
+                summary = "<br/>• " + "<br/>• ".join(html.escape(m) for m in summary_items)
+            else:
+                summary = "Contribution recorded through Git activity; no commit message was provided."
+
+            contribution_data.append([
+                Paragraph(html.escape(name), meta_cell_style),
+                Paragraph(summary, msg_style)
+            ])
+    else:
+        contribution_data.append([
+            "No collaborators found in this period.",
+            "Run with 'final' to include the complete project lifecycle."
+        ])
+
+    contribution_table = Table(contribution_data, colWidths=[150, 410])
+    contribution_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#1E293B")),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 8),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8FAFC")]),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+    ]))
+    story.append(contribution_table)
+    story.append(Spacer(1, 6))
+
     # 4. Visual Charts
     story.append(Paragraph("2. Visual Trends & Volume", section_style))
     chart_image = create_charts(students, timeline_activity, interval)
